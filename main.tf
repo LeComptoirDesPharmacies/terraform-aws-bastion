@@ -1,11 +1,3 @@
-data "template_file" "user_data" {
-  template = file("${path.module}/user_data.sh")
-
-  vars = {
-    aws_region  = var.aws_region
-    bucket_name = var.bucket_name
-  }
-}
 
 resource "aws_kms_key" "key" {
   tags = merge(var.tags)
@@ -276,7 +268,10 @@ resource "aws_launch_configuration" "bastion_launch_configuration" {
     aws_security_group.bastion_host_security_group.id
   ]
 
-  user_data = data.template_file.user_data.rendered
+  user_data = templatefile("${path.module}/user_data.sh", {
+    aws_region  = var.aws_region
+    bucket_name = var.bucket_name
+  })
 
   lifecycle {
     create_before_destroy = true
