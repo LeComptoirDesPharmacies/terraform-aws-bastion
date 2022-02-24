@@ -18,32 +18,47 @@ resource "aws_kms_alias" "alias" {
 
 resource "aws_s3_bucket" "bucket" {
   bucket = var.bucket_name
-  acl    = "private"
+  force_destroy = var.bucket_force_destroy
+  tags = merge(var.tags)
+}
 
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        kms_master_key_id = aws_kms_key.key.id
-        sse_algorithm     = "aws:kms"
-      }
+resource "aws_s3_bucket_acl" "bucket_acl" {
+  bucket = var.bucket_name
+  acl    = "private"
+}
+
+resource "aws_s3_bucket_versioning" "bucket_versioning" {
+  bucket = var.bucket_name
+  versioning_configuration {
+    status = var.bucket_versioning ? "Enabled" : "Disabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "bucket_encryption" {
+  bucket = var.bucket_name
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.key.id
+      sse_algorithm     = "aws:kms"
     }
   }
+}
 
-  force_destroy = var.bucket_force_destroy
-
-  versioning {
-    enabled = var.bucket_versioning
-  }
-
-  lifecycle_rule {
+resource "aws_s3_bucket_lifecycle_configuration" "bucket_config" {
+  bucket = var.bucket_name
+  rule {
     id      = "log"
-    enabled = var.log_auto_clean
+    status = var.log_auto_clean ? "Enabled" : "Disabled"
 
-    prefix = "logs/"
+    filter {
+      and {
+        prefix = "logs/"
 
-    tags = {
-      rule      = "log"
-      autoclean = var.log_auto_clean
+        tags = {
+          rule      = "log"
+          autoclean = var.log_auto_clean
+        }
+      }
     }
 
     transition {
@@ -60,8 +75,6 @@ resource "aws_s3_bucket" "bucket" {
       days = var.log_expiry_days
     }
   }
-
-  tags = merge(var.tags)
 }
 
 resource "aws_s3_bucket_object" "bucket_public_keys_readme" {
