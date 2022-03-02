@@ -69,7 +69,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "bucket_config" {
   }
 }
 
-resource "aws_s3_bucket_object" "bucket_public_keys_readme" {
+resource "aws_s3_object" "bucket_public_keys_readme" {
   bucket  = aws_s3_bucket.bucket.id
   key     = "public-keys/README.txt"
   content = "Drop here the ssh public keys of the instances you want to control"
