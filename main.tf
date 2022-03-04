@@ -302,7 +302,7 @@ resource "aws_autoscaling_group" "bastion_auto_scaling_group" {
   enabled_metrics = var.enabled_metrics
 
   tags = concat(
-    list(tomap({"key", "Name", "value", "ASG-${aws_launch_configuration.bastion_launch_configuration.name}", "propagate_at_launch", true})),
+    list(tomap({"key"= "Name", "value"= "ASG-${aws_launch_configuration.bastion_launch_configuration.name}", "propagate_at_launch"= true})),
     local.tags_asg_format
   )
 
