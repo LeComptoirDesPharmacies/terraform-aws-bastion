@@ -176,7 +176,7 @@ variable "enabled_metrics" {
 
 variable "instance_type" {
   description = "Instance size of the bastion"
-  default     = "t3.nano"
+  default     = "t2.nano"
 }
 
 variable "disk_encrypt" {

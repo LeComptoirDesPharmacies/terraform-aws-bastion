@@ -1,23 +1,4 @@
 resource "aws_kms_key" "key" {
-  tags = merge(var.tags)
-}
-
-resource "aws_kms_alias" "alias" {
-  name          = "alias/${replace(var.bucket_name, ".", "_")}"
-  target_key_id = aws_kms_key.key.arn
-}
-
-resource "aws_kms_key" "key" {
-  acl    = "private"
-
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        kms_master_key_id = aws_kms_key.key.id
-        sse_algorithm     = "aws:kms"
-      }
-    }
-  }
   enable_key_rotation = var.kms_enable_key_rotation
   tags                = merge(var.tags)
 }
@@ -54,8 +35,8 @@ resource "aws_security_group_rule" "ingress_bastion" {
   from_port        = var.public_ssh_port
   to_port          = var.public_ssh_port
   protocol         = "TCP"
-  cidr_blocks      = concat(data.aws_subnet.subnets.*.cidr_block, var.cidrs)
-  ipv6_cidr_blocks = concat(data.aws_subnet.subnets.*.ipv6_cidr_block, var.ipv6_cidrs)
+  cidr_blocks      = compact(concat(data.aws_subnet.subnets.*.cidr_block, var.cidrs))
+  ipv6_cidr_blocks = compact(concat(data.aws_subnet.subnets.*.ipv6_cidr_block, var.ipv6_cidrs))
 
   security_group_id = local.security_group
 }
@@ -110,7 +91,6 @@ resource "aws_iam_role" "bastion_host_role" {
   assume_role_policy   = data.aws_iam_policy_document.assume_policy_document.json
   permissions_boundary = var.bastion_iam_permissions_boundary
 }
-
 
 data "aws_iam_policy_document" "bastion_host_policy_document" {
 
@@ -177,8 +157,6 @@ resource "aws_route53_record" "bastion_record_name" {
   }
 }
 
-
-
 resource "aws_lb" "bastion_lb" {
   count    = var.create_lb ? 1 : 0
 
@@ -225,7 +203,7 @@ resource "aws_iam_instance_profile" "bastion_host_profile" {
 }
 
 resource "aws_launch_template" "bastion_launch_template" {
-  name_prefix            = local.name_prefix
+  name_prefix            = var.bastion_launch_template_name
   image_id               = var.bastion_ami != "" ? var.bastion_ami : data.aws_ami.amazon-linux-2.id
   instance_type          = var.instance_type
   update_default_version = true
@@ -243,7 +221,7 @@ resource "aws_launch_template" "bastion_launch_template" {
   key_name = var.bastion_host_key_pair
 
   user_data = base64encode(templatefile("${path.module}/user_data.sh", {
-    aws_region              = var.aws.region
+    aws_region              = var.aws_region
     bucket_name             = var.bucket_name
     extra_user_data_content = var.extra_user_data_content
     allow_ssh_commands      = lower(var.allow_ssh_commands)
@@ -325,6 +303,7 @@ resource "aws_autoscaling_group" "bastion_auto_scaling_group" {
 
   depends_on = [aws_s3_bucket.bucket]
 }
+
 data "aws_instances" "bastion_instance_data" {
   instance_tags = {
     Name = aws_autoscaling_group.bastion_auto_scaling_group.name
