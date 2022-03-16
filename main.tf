@@ -255,6 +255,20 @@ resource "aws_launch_template" "bastion_launch_template" {
   }
 }
 
+resource "aws_launch_configuration" "bastion_launch_configuration" {
+  name_prefix                 = "temp"
+  image_id                    = data.aws_ami.amazon-linux-2.id
+  instance_type               = "t2.nano"
+  associate_public_ip_address = var.associate_public_ip_address
+  enable_monitoring           = true
+  iam_instance_profile        = aws_iam_instance_profile.bastion_host_profile.name
+  key_name                    = var.bastion_host_key_pair
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
 resource "aws_autoscaling_group" "bastion_auto_scaling_group" {
   name_prefix = "ASG-${local.name_prefix}"
   launch_template {
