@@ -3,5 +3,5 @@
 
 # Specify the provider and access details
 provider "aws" {
-  region                  = "eu-west-1"
+  region = "eu-west-1"
 }

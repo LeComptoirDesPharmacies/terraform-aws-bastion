@@ -158,7 +158,7 @@ resource "aws_route53_record" "bastion_record_name" {
 }
 
 resource "aws_lb" "bastion_lb" {
-  count    = var.create_lb ? 1 : 0
+  count = var.create_lb ? 1 : 0
 
   internal = var.is_lb_private
   name     = "${local.name_prefix}-lb"
@@ -186,7 +186,7 @@ resource "aws_lb_target_group" "bastion_lb_target_group" {
 }
 
 resource "aws_lb_listener" "bastion_lb_listener_22" {
-  count              = local.has_lb ? 1 : 0
+  count = local.has_lb ? 1 : 0
   default_action {
     target_group_arn = aws_lb_target_group.bastion_lb_target_group[0].arn
     type             = "forward"
@@ -278,7 +278,7 @@ resource "aws_autoscaling_group" "bastion_auto_scaling_group" {
   termination_policies = [
     "OldestLaunchConfiguration",
   ]
-  
+
   enabled_metrics = var.enabled_metrics
 
   dynamic "tag" {

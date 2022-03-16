@@ -82,9 +82,9 @@ variable "bastion_ami" {
   default     = ""
 }
 
-variable "bastion_nlb"{
+variable "bastion_nlb" {
   description = "A network loadbalancer has been created if this value is different from null"
-  default = null
+  default     = null
 }
 
 variable "elb_subnets" {
