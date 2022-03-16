@@ -13,6 +13,9 @@ chown ec2-user:ec2-user /var/log/bastion
 chmod -R 770 /var/log/bastion
 setfacl -Rdm other:0 /var/log/bastion
 
+# Update sshd default port to public_ssh_port
+sed -i "s/#Port 22/Port ${public_ssh_port}/g" /etc/ssh/sshd_config
+
 # Make OpenSSH execute a custom script on logins
 echo -e "\\nForceCommand /usr/bin/bastion/shell" >> /etc/ssh/sshd_config
 
@@ -45,12 +48,16 @@ if [[ -z $SSH_ORIGINAL_COMMAND ]]; then
 
 else
 
-  # The "script" program could be circumvented with some commands (e.g. bash, nc).
-  # Therefore, I intentionally prevent users from supplying commands.
+  # If the module consumer wants to allow remote commands (for ansible or other) then allow that command through.
+  if [ "${allow_ssh_commands}" == "true" ]; then
+    exec /bin/bash -c "$SSH_ORIGINAL_COMMAND"
+  else
+    # The "script" program could be circumvented with some commands (e.g. bash, nc).
+    # Therefore, I intentionally prevent users from supplying commands.
 
-  echo "This bastion supports interactive sessions only. Do not supply a command"
-  exit 1
-
+    echo "This bastion supports interactive sessions only. Do not supply a command"
+    exit 1
+  fi
 fi
 
 EOF
@@ -165,9 +172,16 @@ chmod 700 /usr/bin/bastion/sync_users
 ###########################################
 
 cat > ~/mycron << EOF
-*/5 * * * * /usr/bin/bastion/sync_s3
 */5 * * * * /usr/bin/bastion/sync_users
 0 0 * * * yum -y update --security
+${sync_logs_cron_job}
 EOF
 crontab ~/mycron
 rm ~/mycron
+
+
+#########################################
+## Add Custom extra_user_data_content ##
+#######################################
+
+${extra_user_data_content}

@@ -50,7 +50,7 @@ variable "bastion_host_key_pair" {
   description = "Select the key pair to use to launch the bastion host"
 }
 
-variable "hosted_zone_name" {
+variable "hosted_zone_id" {
   description = "Name of the hosted zone were we'll register the bastion DNS name"
   default     = ""
 }
@@ -60,14 +60,31 @@ variable "bastion_record_name" {
   default     = ""
 }
 
-variable "bastion_launch_configuration_name" {
-  description = "Bastion Launch configuration Name, will also be used for the ASG"
-  default     = "lc"
+variable "bastion_launch_template_name" {
+  description = "Bastion Launch template Name, will also be used for the ASG"
+  default     = "bastion-lt"
 }
 
-variable "bastion_nlb"{
+variable "bastion_security_group_id" {
+  description = "Custom security group to use"
+  default     = ""
+}
+
+variable "bastion_additional_security_groups" {
+  description = "List of additional security groups to attach to the launch template"
+  type        = list(string)
+  default     = []
+}
+
+variable "bastion_ami" {
+  type        = string
+  description = "The AMI that the Bastion Host will use."
+  default     = ""
+}
+
+variable "bastion_nlb" {
   description = "A network loadbalancer has been created if this value is different from null"
-  default = null
+  default     = null
 }
 
 variable "elb_subnets" {
@@ -90,7 +107,7 @@ variable "bastion_instance_count" {
 }
 
 variable "create_dns_record" {
-  description = "Choose if you want to create a record name for the bastion (LB). If true 'hosted_zone_name' and 'bastion_record_name' are mandatory and 'create_lb' should be true"
+  description = "Choose if you want to create a record name for the bastion (LB). If true 'hosted_zone_id' and 'bastion_record_name' are mandatory and 'create_lb' should be true"
 }
 
 variable "log_auto_clean" {
@@ -123,13 +140,74 @@ variable "private_ssh_port" {
   default     = 22
 }
 
+variable "extra_user_data_content" {
+  description = "Additional scripting to pass to the bastion host. For example, this can include installing postgresql for the `psql` command."
+  type        = string
+  default     = ""
+}
+
+variable "allow_ssh_commands" {
+  description = "Allows the SSH user to execute one-off commands. Pass true to enable. Warning: These commands are not logged and increase the vulnerability of the system. Use at your own discretion."
+  type        = bool
+  default     = false
+}
+
+variable "bastion_iam_role_name" {
+  description = "IAM role name to create"
+  type        = string
+  default     = null
+}
+
 variable "bastion_iam_policy_name" {
   description = "IAM policy name to create for granting the instance role access to the bucket"
   default     = "BastionHost"
+}
+
+variable "bastion_iam_permissions_boundary" {
+  description = "IAM Role Permissions Boundary to constrain the bastion host role"
+  default     = ""
 }
 
 variable "enabled_metrics" {
   description = "List of autoscaling group metrics to enable."
   type        = list(string)
   default     = []
+}
+
+variable "instance_type" {
+  description = "Instance size of the bastion"
+  default     = "t2.nano"
+}
+
+variable "disk_encrypt" {
+  description = "Instance EBS encrypt"
+  type        = bool
+  default     = true
+}
+
+variable "disk_size" {
+  description = "Root EBS size in GB"
+  type        = number
+  default     = 8
+}
+
+variable "enable_logs_s3_sync" {
+  description = "Enable cron job to copy logs to S3"
+  type        = bool
+  default     = true
+}
+
+variable "kms_enable_key_rotation" {
+  description = "Enable key rotation for the KMS key"
+  type        = bool
+  default     = false
+}
+
+variable "ipv6_cidrs" {
+  description = "List of IPv6 CIDRs than can access to the bastion. Default : ::/0"
+  type        = list(string)
+
+  default = [
+    "::/0",
+  ]
 }

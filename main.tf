@@ -1,14 +1,6 @@
-data "template_file" "user_data" {
-  template = file("${path.module}/user_data.sh")
-
-  vars = {
-    aws_region  = var.aws_region
-    bucket_name = var.bucket_name
-  }
-}
-
 resource "aws_kms_key" "key" {
-  tags = merge(var.tags)
+  enable_key_rotation = var.kms_enable_key_rotation
+  tags                = merge(var.tags)
 }
 
 resource "aws_kms_alias" "alias" {
@@ -16,62 +8,19 @@ resource "aws_kms_alias" "alias" {
   target_key_id = aws_kms_key.key.arn
 }
 
-resource "aws_s3_bucket" "bucket" {
-  bucket = var.bucket_name
-  acl    = "private"
-
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        kms_master_key_id = aws_kms_key.key.id
-        sse_algorithm     = "aws:kms"
-      }
-    }
-  }
-
-  force_destroy = var.bucket_force_destroy
-
-  versioning {
-    enabled = var.bucket_versioning
-  }
-
-  lifecycle_rule {
-    id      = "log"
-    enabled = var.log_auto_clean
-
-    prefix = "logs/"
-
-    tags = {
-      rule      = "log"
-      autoclean = var.log_auto_clean
-    }
-
-    transition {
-      days          = var.log_standard_ia_days
-      storage_class = "STANDARD_IA"
-    }
-
-    transition {
-      days          = var.log_glacier_days
-      storage_class = "GLACIER"
-    }
-
-    expiration {
-      days = var.log_expiry_days
-    }
-  }
-
-  tags = merge(var.tags)
+data "aws_kms_alias" "kms-ebs" {
+  name = "alias/aws/ebs"
 }
 
-resource "aws_s3_bucket_object" "bucket_public_keys_readme" {
-  bucket  = aws_s3_bucket.bucket.id
-  key     = "public-keys/README.txt"
-  content = "Drop here the ssh public keys of the instances you want to control"
+resource "aws_s3_object" "bucket_public_keys_readme" {
+  bucket     = aws_s3_bucket.bucket.id
+  key        = "public-keys/README.txt"
+  content    = "Drop here the ssh public keys of the instances you want to control"
   kms_key_id = aws_kms_key.key.arn
 }
 
 resource "aws_security_group" "bastion_host_security_group" {
+  count       = var.bastion_security_group_id == "" ? 1 : 0
   description = "Enable SSH access to the bastion host from external via SSH port"
   name        = "${local.name_prefix}-host"
   vpc_id      = var.vpc_id
@@ -80,17 +29,20 @@ resource "aws_security_group" "bastion_host_security_group" {
 }
 
 resource "aws_security_group_rule" "ingress_bastion" {
-  description = "Incoming traffic to bastion"
-  type        = "ingress"
-  from_port   = var.public_ssh_port
-  to_port     = var.public_ssh_port
-  protocol    = "TCP"
-  cidr_blocks = concat(data.aws_subnet.subnets.*.cidr_block, var.cidrs)
+  count            = var.bastion_security_group_id == "" ? 1 : 0
+  description      = "Incoming traffic to bastion"
+  type             = "ingress"
+  from_port        = var.public_ssh_port
+  to_port          = var.public_ssh_port
+  protocol         = "TCP"
+  cidr_blocks      = compact(concat(data.aws_subnet.subnets.*.cidr_block, var.cidrs))
+  ipv6_cidr_blocks = compact(concat(data.aws_subnet.subnets.*.ipv6_cidr_block, var.ipv6_cidrs))
 
-  security_group_id = aws_security_group.bastion_host_security_group.id
+  security_group_id = local.security_group
 }
 
 resource "aws_security_group_rule" "egress_bastion" {
+  count       = var.bastion_security_group_id == "" ? 1 : 0
   description = "Outgoing traffic from bastion to instances"
   type        = "egress"
   from_port   = "0"
@@ -98,7 +50,7 @@ resource "aws_security_group_rule" "egress_bastion" {
   protocol    = "-1"
   cidr_blocks = ["0.0.0.0/0"]
 
-  security_group_id = aws_security_group.bastion_host_security_group.id
+  security_group_id = local.security_group
 }
 
 resource "aws_security_group" "private_instances_security_group" {
@@ -112,11 +64,11 @@ resource "aws_security_group" "private_instances_security_group" {
 resource "aws_security_group_rule" "ingress_instances" {
   description = "Incoming traffic from bastion"
   type        = "ingress"
-  from_port   = var.public_ssh_port
-  to_port     = var.public_ssh_port
+  from_port   = var.private_ssh_port
+  to_port     = var.private_ssh_port
   protocol    = "TCP"
 
-  source_security_group_id = aws_security_group.bastion_host_security_group.id
+  source_security_group_id = local.security_group
 
   security_group_id = aws_security_group.private_instances_security_group.id
 }
@@ -134,8 +86,10 @@ data "aws_iam_policy_document" "assume_policy_document" {
 }
 
 resource "aws_iam_role" "bastion_host_role" {
-  path = "/"
-  assume_role_policy = data.aws_iam_policy_document.assume_policy_document.json
+  name                 = var.bastion_iam_role_name
+  path                 = "/"
+  assume_role_policy   = data.aws_iam_policy_document.assume_policy_document.json
+  permissions_boundary = var.bastion_iam_permissions_boundary
 }
 
 data "aws_iam_policy_document" "bastion_host_policy_document" {
@@ -193,7 +147,7 @@ resource "aws_iam_role_policy_attachment" "bastion_host" {
 resource "aws_route53_record" "bastion_record_name" {
   count   = var.create_dns_record && local.has_lb ? 1 : 0
   name    = var.bastion_record_name
-  zone_id = var.hosted_zone_name
+  zone_id = var.hosted_zone_id
   type    = "A"
 
   alias {
@@ -203,10 +157,8 @@ resource "aws_route53_record" "bastion_record_name" {
   }
 }
 
-
-
 resource "aws_lb" "bastion_lb" {
-  count    = var.create_lb ? 1 : 0
+  count = var.create_lb ? 1 : 0
 
   internal = var.is_lb_private
   name     = "${local.name_prefix}-lb"
@@ -234,7 +186,7 @@ resource "aws_lb_target_group" "bastion_lb_target_group" {
 }
 
 resource "aws_lb_listener" "bastion_lb_listener_22" {
-  count              = local.has_lb ? 1 : 0
+  count = local.has_lb ? 1 : 0
   default_action {
     target_group_arn = aws_lb_target_group.bastion_lb_target_group[0].arn
     type             = "forward"
@@ -250,20 +202,53 @@ resource "aws_iam_instance_profile" "bastion_host_profile" {
   path = "/"
 }
 
-resource "aws_launch_configuration" "bastion_launch_configuration" {
-  name_prefix                 = var.bastion_launch_configuration_name
-  image_id                    = data.aws_ami.amazon-linux-2.id
-  instance_type               = "t2.nano"
-  associate_public_ip_address = var.associate_public_ip_address
-  enable_monitoring           = true
-  iam_instance_profile        = aws_iam_instance_profile.bastion_host_profile.name
-  key_name                    = var.bastion_host_key_pair
+resource "aws_launch_template" "bastion_launch_template" {
+  name_prefix            = var.bastion_launch_template_name
+  image_id               = var.bastion_ami != "" ? var.bastion_ami : data.aws_ami.amazon-linux-2.id
+  instance_type          = var.instance_type
+  update_default_version = true
+  monitoring {
+    enabled = true
+  }
+  network_interfaces {
+    associate_public_ip_address = var.associate_public_ip_address
+    security_groups             = concat([local.security_group], var.bastion_additional_security_groups)
+    delete_on_termination       = true
+  }
+  iam_instance_profile {
+    name = aws_iam_instance_profile.bastion_host_profile.name
+  }
+  key_name = var.bastion_host_key_pair
 
-  security_groups = [
-    aws_security_group.bastion_host_security_group.id
-  ]
+  user_data = base64encode(templatefile("${path.module}/user_data.sh", {
+    aws_region              = var.aws_region
+    bucket_name             = var.bucket_name
+    extra_user_data_content = var.extra_user_data_content
+    allow_ssh_commands      = lower(var.allow_ssh_commands)
+    public_ssh_port         = var.public_ssh_port
+    sync_logs_cron_job      = var.enable_logs_s3_sync ? "*/5 * * * * /usr/bin/bastion/sync_s3" : ""
+  }))
 
-  user_data = data.template_file.user_data.rendered
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      volume_size           = var.disk_size
+      volume_type           = "gp2"
+      delete_on_termination = true
+      encrypted             = var.disk_encrypt
+      kms_key_id            = var.disk_encrypt ? data.aws_kms_alias.kms-ebs.target_key_arn : ""
+    }
+  }
+
+  tag_specifications {
+    resource_type = "instance"
+    tags          = merge(tomap({ "Name" = var.bastion_launch_template_name }), merge(var.tags))
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+    tags          = merge(tomap({ "Name" = var.bastion_launch_template_name }), merge(var.tags))
+  }
 
   lifecycle {
     create_before_destroy = true
@@ -271,11 +256,14 @@ resource "aws_launch_configuration" "bastion_launch_configuration" {
 }
 
 resource "aws_autoscaling_group" "bastion_auto_scaling_group" {
-  name                 = "ASG-${aws_launch_configuration.bastion_launch_configuration.name}"
-  launch_configuration = aws_launch_configuration.bastion_launch_configuration.name
-  max_size             = var.bastion_instance_count
-  min_size             = var.bastion_instance_count
-  desired_capacity     = var.bastion_instance_count
+  name_prefix = "ASG-${local.name_prefix}"
+  launch_template {
+    id      = aws_launch_template.bastion_launch_template.id
+    version = "$Latest"
+  }
+  max_size         = var.bastion_instance_count
+  min_size         = var.bastion_instance_count
+  desired_capacity = var.bastion_instance_count
 
   vpc_zone_identifier = var.auto_scaling_group_subnets
 
@@ -290,17 +278,30 @@ resource "aws_autoscaling_group" "bastion_auto_scaling_group" {
   termination_policies = [
     "OldestLaunchConfiguration",
   ]
-  
+
   enabled_metrics = var.enabled_metrics
 
-  tags = concat(
-    list(map("key", "Name", "value", "ASG-${aws_launch_configuration.bastion_launch_configuration.name}", "propagate_at_launch", true)),
-    local.tags_asg_format
-  )
+  dynamic "tag" {
+    for_each = var.tags
+
+    content {
+      key                 = tag.key
+      value               = tag.value
+      propagate_at_launch = true
+    }
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "ASG-${local.name_prefix}"
+    propagate_at_launch = true
+  }
 
   lifecycle {
     create_before_destroy = true
   }
+
+  depends_on = [aws_s3_bucket.bucket]
 }
 
 data "aws_instances" "bastion_instance_data" {
