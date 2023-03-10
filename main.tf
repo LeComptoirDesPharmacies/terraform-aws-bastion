@@ -20,7 +20,7 @@ resource "aws_s3_object" "bucket_public_keys_readme" {
 }
 
 resource "aws_s3_object" "bucket_public_keys" {
-  for_each    = toset(var.public_keys)
+  for_each    = {for pk in var.public_keys:  pk.name => pk}
   bucket      = aws_s3_bucket.bucket.id
   key         = "public-keys/${each.value.name}.pub"
   content     = each.value.key
