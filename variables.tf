@@ -174,6 +174,15 @@ variable "enabled_metrics" {
   default     = []
 }
 
+variable "public_keys" {
+  description = "Default public keys who are authorized to reach bastion"
+  type        = list(object({
+    name = string,
+    key  = string
+  }))
+  default     = []
+}
+
 variable "instance_type" {
   description = "Instance size of the bastion"
   default     = "t2.nano"

@@ -19,6 +19,14 @@ resource "aws_s3_object" "bucket_public_keys_readme" {
   kms_key_id = aws_kms_key.key.arn
 }
 
+resource "aws_s3_object" "bucket_public_keys" {
+  for_each    = var.public_keys
+  bucket      = aws_s3_bucket.bucket.id
+  key         = "public-keys/${each.value.name}.pub"
+  content     = each.value.key
+  kms_key_id  = aws_kms_key.key.arn
+}
+
 resource "aws_security_group" "bastion_host_security_group" {
   count       = var.bastion_security_group_id == "" ? 1 : 0
   description = "Enable SSH access to the bastion host from external via SSH port"
