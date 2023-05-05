@@ -1,13 +1,4 @@
 resource "aws_kms_key" "key" {
-  tags = merge(var.tags)
-}
-
-resource "aws_kms_alias" "alias" {
-  name          = "alias/${replace(var.bucket_name, ".", "_")}"
-  target_key_id = aws_kms_key.key.arn
-}
-
-resource "aws_kms_key" "key" {
   acl    = "private"
 
   server_side_encryption_configuration {
