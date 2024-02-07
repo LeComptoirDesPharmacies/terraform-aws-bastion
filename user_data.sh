@@ -33,9 +33,18 @@ amazon-linux-extras install epel -y
 # install fail2ban
 yum -y install fail2ban
 
-# configure fail2ban  (just adding enabled=true in the sshd section)
-cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
-sed -i "s/^\[sshd\]/[sshd]\nenabled=true\nmode=aggressive\nfindtime = 120m\nbantime = 168h\nmaxretry = 3/" /etc/fail2ban/jail.local
+# configure fail2ban
+cat > /etc/fail2ban/jail.d/01-sshd.conf <<EOF
+[sshd]
+enabled = true
+mode = aggressive
+banaction = iptables-multiport
+banaction_allports = iptables-allports
+ignoreip = ${bastion_cidrs}
+findtime = 24h
+bantime = 168h
+maxretry = 18
+EOF
 
 # profit
 systemctl enable fail2ban

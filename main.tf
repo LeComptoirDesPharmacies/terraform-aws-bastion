@@ -235,6 +235,7 @@ resource "aws_launch_template" "bastion_launch_template" {
     allow_ssh_commands      = lower(var.allow_ssh_commands)
     public_ssh_port         = var.public_ssh_port
     sync_logs_cron_job      = var.enable_logs_s3_sync ? "*/5 * * * * /usr/bin/bastion/sync_s3" : ""
+    bastion_cidrs           = join(" ", concat(data.aws_subnet.subnets.*.cidr_block, data.aws_subnet.subnets.*.ipv6_cidr_block))
   }))
 
   block_device_mappings {
