@@ -41,9 +41,9 @@ mode = aggressive
 banaction = iptables-multiport
 banaction_allports = iptables-allports
 ignoreip = ${bastion_cidrs}
-findtime = 2h
+findtime = 24h
 bantime = 168h
-maxretry = 6
+maxretry = 18
 EOF
 
 # profit
