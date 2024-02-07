@@ -23,15 +23,6 @@ variable "aws_region" {
   type        = string
 }
 
-variable "cidrs" {
-  description = "List of CIDRs than can access to the bastion. Default : 0.0.0.0/0"
-  type        = list(string)
-
-  default = [
-    "0.0.0.0/0",
-  ]
-}
-
 variable "create_lb" {
   description = "Choose if you want to create a load balancer for the bastion. If true, you can setup DNS and 'is_lb_private', 'elb_subnets', 'auto_scaling_group_subnets' are mandatory"
   type        = bool
@@ -210,13 +201,4 @@ variable "kms_enable_key_rotation" {
   description = "Enable key rotation for the KMS key"
   type        = bool
   default     = false
-}
-
-variable "ipv6_cidrs" {
-  description = "List of IPv6 CIDRs than can access to the bastion. Default : ::/0"
-  type        = list(string)
-
-  default = [
-    "::/0",
-  ]
 }
