@@ -23,6 +23,24 @@ echo -e "\\nForceCommand /usr/bin/bastion/shell" >> /etc/ssh/sshd_config
 awk '!/X11Forwarding/' /etc/ssh/sshd_config > temp && mv temp /etc/ssh/sshd_config
 echo "X11Forwarding no" >> /etc/ssh/sshd_config
 
+# Block connecting SSH using GSSAPI (Kerberos)
+sed -i "s/^GSSAPIAuthentication yes/GSSAPIAuthentication no/" /etc/ssh/sshd_config
+
+# Setup fail2ban to avoid brut force authentication tryout
+# install epel
+#amazon-linux-extras install epel -y
+
+# install fail2ban
+yum -y install fail2ban
+
+# configure fail2ban  (just adding enabled=true in the sshd section)
+cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+sed -i "s/^\[sshd\]/[sshd]\nenabled=true\mode=aggressive/" /etc/fail2ban/jail.local
+
+# profit
+systemctl enable fail2ban
+systemctl start fail2ban
+
 mkdir /usr/bin/bastion
 
 cat > /usr/bin/bastion/shell << 'EOF'
