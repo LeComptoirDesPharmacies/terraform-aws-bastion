@@ -38,10 +38,12 @@ cat > /etc/fail2ban/jail.d/01-sshd.conf <<EOF
 [sshd]
 enabled = true
 mode = aggressive
+banaction = iptables-multiport
+banaction_allports = iptables-allports
 ignoreip = ${bastion_cidrs}
 findtime = 2h
 bantime = 168h
-maxretry = 6h
+maxretry = 6
 EOF
 
 # profit
