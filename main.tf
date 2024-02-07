@@ -43,8 +43,8 @@ resource "aws_security_group_rule" "ingress_bastion" {
   from_port        = var.public_ssh_port
   to_port          = var.public_ssh_port
   protocol         = "TCP"
-  cidr_blocks      = data.aws_subnet.subnets.*.cidr_block
-  ipv6_cidr_blocks = data.aws_subnet.subnets.*.ipv6_cidr_block
+  cidr_blocks      = compact(data.aws_subnet.subnets.*.cidr_block)
+  ipv6_cidr_blocks = compact(data.aws_subnet.subnets.*.ipv6_cidr_block)
 
   security_group_id = local.security_group
 }
@@ -235,7 +235,7 @@ resource "aws_launch_template" "bastion_launch_template" {
     allow_ssh_commands      = lower(var.allow_ssh_commands)
     public_ssh_port         = var.public_ssh_port
     sync_logs_cron_job      = var.enable_logs_s3_sync ? "*/5 * * * * /usr/bin/bastion/sync_s3" : ""
-    bastion_cidrs           = join(" ", concat(data.aws_subnet.subnets.*.cidr_block, data.aws_subnet.subnets.*.ipv6_cidr_block))
+    bastion_cidrs           = join(" ", compact(concat(data.aws_subnet.subnets.*.cidr_block, data.aws_subnet.subnets.*.ipv6_cidr_block)))
   }))
 
   block_device_mappings {
