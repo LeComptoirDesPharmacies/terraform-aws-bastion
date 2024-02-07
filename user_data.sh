@@ -35,7 +35,7 @@ yum -y install fail2ban
 
 # configure fail2ban  (just adding enabled=true in the sshd section)
 cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
-sed -i "s/^\[sshd\]/[sshd]\nenabled=true\nmode=aggressive/" /etc/fail2ban/jail.local
+sed -i "s/^\[sshd\]/[sshd]\nenabled=true\nmode=aggressive\nfindtime = 120m\nbantime = 168h\nmaxretry = 3/" /etc/fail2ban/jail.local
 
 # profit
 systemctl enable fail2ban
