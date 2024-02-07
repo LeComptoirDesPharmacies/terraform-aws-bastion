@@ -26,10 +26,7 @@ echo "X11Forwarding no" >> /etc/ssh/sshd_config
 # Block connecting SSH using GSSAPI (Kerberos)
 sed -i "s/^GSSAPIAuthentication yes/GSSAPIAuthentication no/" /etc/ssh/sshd_config
 
-# Setup fail2ban to avoid brut force authentication tryout
-# install epel
-#amazon-linux-extras install epel -y
-
+# Protect against brut force authentication tryout
 # install fail2ban
 yum -y install fail2ban
 
