@@ -27,6 +27,9 @@ echo "X11Forwarding no" >> /etc/ssh/sshd_config
 sed -i "s/^GSSAPIAuthentication yes/GSSAPIAuthentication no/" /etc/ssh/sshd_config
 
 # Protect against brut force authentication tryout
+# install epel
+amazon-linux-extras install epel -y
+
 # install fail2ban
 yum -y install fail2ban
 
