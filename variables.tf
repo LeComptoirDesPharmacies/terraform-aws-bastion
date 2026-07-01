@@ -146,6 +146,12 @@ variable "extra_user_data_content" {
   default     = ""
 }
 
+variable "fail2ban_ddos_ignoreip" {
+  description = "List of trusted IPs/CIDRs exempted from the fail2ban connection-noise jails (sshd-ddos and recidive) but NOT from the authentication jail. Use for legitimate automation that opens TCP connections without completing the SSH handshake (e.g. Fivetran shared egress '35.235.32.144/29'). These IPs are still banned on real SSH authentication failures, so a shared IP is not granted blanket immunity."
+  type        = list(string)
+  default     = []
+}
+
 variable "allow_ssh_commands" {
   description = "Allows the SSH user to execute one-off commands. Pass true to enable. Warning: These commands are not logged and increase the vulnerability of the system. Use at your own discretion."
   type        = bool

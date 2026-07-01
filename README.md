@@ -131,6 +131,7 @@ using true | `bool` | `false` | no |
 | <a name="input_enable_logs_s3_sync"></a> [enable\_logs\_s3\_sync](#input\_enable\_logs\_s3\_sync) | Enable cron job to copy logs to S3 | `bool` | `true`
 | no |
 | <a name="input_extra_user_data_content"></a> [extra\_user\_data\_content](#input\_extra\_user\_data\_content) | Additional scripting to pass to the bastion host. For example, this can include installing postgresql for the `psql` command. | `string` | `""` | no |
+| <a name="input_fail2ban_ddos_ignoreip"></a> [fail2ban\_ddos\_ignoreip](#input\_fail2ban\_ddos\_ignoreip) | List of trusted IPs/CIDRs exempted from the fail2ban connection-noise jails (sshd-ddos and recidive) but NOT from the authentication jail. Use for legitimate automation that opens TCP connections without completing the SSH handshake (e.g. Fivetran shared egress `35.235.32.144/29`). These IPs are still banned on real SSH authentication failures. | `list(string)` | `[]` | no |
 | <a name="input_hosted_zone_id"></a> [hosted\_zone\_id](#input\_hosted\_zone\_id) | Name of the hosted zone were we'll register the bastion DNS name | `string` | `""` | no |
 | <a name="input_instance_type"></a> [instance\_type](#input\_instance\_type) | Instance size of the bastion | `string` | `"t3.nano"` | no |
 | <a name="input_ipv6_cidrs"></a> [ipv6\_cidrs](#input\_ipv6\_cidrs) | List of IPv6 CIDRs than can access to the bastion. Default : ::/0 | `list(string)` | <pre>[<br>  "::/0"<br>]</pre> | no |

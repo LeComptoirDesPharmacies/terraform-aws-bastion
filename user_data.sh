@@ -35,15 +35,53 @@ yum -y install fail2ban
 
 # configure fail2ban
 cat > /etc/fail2ban/jail.d/01-sshd.conf <<EOF
+[DEFAULT]
+bantime.increment = true
+bantime           = 1h
+bantime.maxtime   = 1w
+banaction         = iptables-multiport
+# Trusted internal networks (ELB/NLB subnets): never banned, across every jail.
+# Notably covers the load balancer TCP health checks.
+ignoreip          = 127.0.0.1/8 ::1 ${bastion_cidrs}
+
+# Jail 1 - real authentication failures: applies to EVERYONE (no custom exemption).
+# This is the actual brute-force protection; maxretry kept low on purpose.
 [sshd]
-enabled = true
-mode = aggressive
-banaction = iptables-multiport
-banaction_allports = iptables-allports
-ignoreip = ${bastion_cidrs}
-findtime = 24h
-bantime = 168h
-maxretry = 18
+enabled  = true
+backend  = %(sshd_backend)s
+mode     = normal
+port     = ${public_ssh_port}
+findtime = 1h
+maxretry = 5
+
+# Jail 2 - connection noise (ddos mode): aggressive for everyone EXCEPT trusted IPs.
+# fail2ban_ddos_ignoreip = legitimate automation (e.g. Fivetran) that opens TCP
+# connections without completing the SSH handshake. Exempted HERE only, NOT from the
+# auth jail above, so a shared IP keeps no immunity against real login attacks.
+[sshd-ddos]
+enabled  = true
+backend  = %(sshd_backend)s
+filter   = sshd[mode=ddos]
+port     = ${public_ssh_port}
+findtime = 1h
+maxretry = 5
+ignoreip = 127.0.0.1/8 ::1 ${bastion_cidrs} ${fail2ban_ddos_ignoreip}
+
+# Jail 3 - "extra" patterns (Connection closed [preauth], etc.): aggressive for everyone.
+[sshd-extra]
+enabled  = true
+backend  = %(sshd_backend)s
+filter   = sshd[mode=extra]
+port     = ${public_ssh_port}
+findtime = 1h
+maxretry = 5
+
+# Jail 4 - recidive: all-ports, long-duration ban for repeat offenders.
+# logpath, banaction=allports, bantime=1w and findtime=1d come from the stock jail.conf
+# definition; we only enable it and exempt the trusted IPs.
+[recidive]
+enabled  = true
+ignoreip = 127.0.0.1/8 ::1 ${bastion_cidrs} ${fail2ban_ddos_ignoreip}
 EOF
 
 # profit
