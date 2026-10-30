@@ -38,6 +38,7 @@ module "bastion" {
   "vpc_id" = "my_vpc_id"
   "is_lb_private" = "true|false"	
   "bastion_host_key_pair" = "my_key_pair"
+  "bastion_ami" = "my_al2023_ami_id"
   "create_dns_record" = "true|false"
   "hosted_zone_id" = "my.hosted.zone.name."
   "bastion_record_name" = "bastion.my.hosted.zone.name."
@@ -95,7 +96,7 @@ module "bastion" {
 | [aws_security_group.bastion_host_security_group](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group) | resource || [aws_security_group.private_instances_security_group](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group) | resource |
 | [aws_security_group_rule.egress_bastion](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule) | resource |   
 | [aws_security_group_rule.ingress_bastion](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule) | resource |  
-| [aws_security_group_rule.ingress_instances](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule) | resource || [aws_ssm_parameter.al2023](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/ssm_parameter) | data source |
+| [aws_security_group_rule.ingress_instances](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule) | resource |
 | [aws_iam_policy_document.assume_policy_document](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.bastion_host_policy_document](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_kms_alias.kms-ebs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/kms_alias) | data source |
@@ -105,13 +106,12 @@ module "bastion" {
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| <a name="input_al2023_kernel"></a> [al2023\_kernel](#input\_al2023\_kernel) | Kernel line of the default Amazon Linux 2023 AMI (6.12, 6.18 or default) | `string` | `"6.18"` | no |
 | <a name="input_allow_ssh_commands"></a> [allow\_ssh\_commands](#input\_allow\_ssh\_commands) | Allows the SSH user to execute one-off commands. Pass true to enable. Warning: These commands are not logged and increase the vulnerability of the system. Use at your own discretion. | `bool` | `false` | no |     
 | <a name="input_associate_public_ip_address"></a> [associate\_public\_ip\_address](#input\_associate\_public\_ip\_address) | n/a | `bool` | `true` | no | 
 | <a name="input_auto_scaling_group_subnets"></a> [auto\_scaling\_group\_subnets](#input\_auto\_scaling\_group\_subnets) | List of subnet were the Auto Scalling Group will deploy the instances | `list(string)` | n/a | yes |
 | <a name="input_bastion_additional_security_groups"></a> [bastion\_additional\_security\_groups](#input\_bastion\_additional\_security\_groups) | List of
 additional security groups to attach to the launch template | `list(string)` | `[]` | no |
-| <a name="input_bastion_ami"></a> [bastion\_ami](#input\_bastion\_ami) | The AMI that the Bastion Host will use. Default : latest Amazon Linux 2023 AMI (see al2023\_kernel). The user data only supports Amazon Linux 2023. | `string` | `""` | no |
+| <a name="input_bastion_ami"></a> [bastion\_ami](#input\_bastion\_ami) | The AMI that the Bastion Host will use. It must be an Amazon Linux 2023 AMI: the user data only supports this distribution. | `string` | n/a | yes |
 | <a name="input_bastion_host_key_pair"></a> [bastion\_host\_key\_pair](#input\_bastion\_host\_key\_pair) | Select the key pair to use to launch the bastion host | `any` | n/a | yes |
 | <a name="input_bastion_iam_permissions_boundary"></a> [bastion\_iam\_permissions\_boundary](#input\_bastion\_iam\_permissions\_boundary) | IAM Role Permissions Boundary to constrain the bastion host role | `string` | `""` | no |
 | <a name="input_bastion_iam_policy_name"></a> [bastion\_iam\_policy\_name](#input\_bastion\_iam\_policy\_name) | IAM policy name to create for granting the instance role access to the bucket | `string` | `"BastionHost"` | no |
