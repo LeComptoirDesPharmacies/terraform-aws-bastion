@@ -5,8 +5,7 @@ module "bastion" {
   vpc_id                  = "my_vpc_id"
   is_lb_private           = "true"
   bastion_host_key_pair   = "my_key_pair"
-  bastion_ami             = "my_al2023_ami_id"
-  hosted_zone_id         = "my.hosted.zone.name."
+  hosted_zone_id          = "my.hosted.zone.name."
   bastion_record_name     = "bastion.my.hosted.zone.name."
   kms_enable_key_rotation = true
 
