@@ -1,5 +1,15 @@
 #!/bin/bash -x
-yum -y update --security
+# Amazon Linux 2023 pins its repositories to the AMI release: --releasever=latest
+# is required to actually pull the security updates published since then
+dnf -y upgrade --security --releasever=latest
+
+# Not installed by default on Amazon Linux 2023:
+# - cronie runs the users/logs synchronization below
+# - acl provides setfacl
+# - fail2ban-systemd reads sshd logs from the journal (no /var/log/secure)
+# - iptables-nft provides the iptables command used by the fail2ban ban actions
+dnf -y install cronie acl fail2ban-server fail2ban-systemd iptables-nft
+systemctl enable --now crond
 
 ##########################
 ## ENABLE SSH RECORDING ##
@@ -13,26 +23,25 @@ chown ec2-user:ec2-user /var/log/bastion
 chmod -R 770 /var/log/bastion
 setfacl -Rdm other:0 /var/log/bastion
 
+# sshd keeps the first value it reads for a keyword, and sshd_config includes
+# sshd_config.d/*.conf at its top: this drop-in must sort before 50-redhat.conf,
+# which sets X11Forwarding and GSSAPIAuthentication to yes
+cat > /etc/ssh/sshd_config.d/00-bastion.conf <<EOF
 # Update sshd default port to public_ssh_port
-sed -i "s/#Port 22/Port ${public_ssh_port}/g" /etc/ssh/sshd_config
+Port ${public_ssh_port}
 
 # Make OpenSSH execute a custom script on logins
-echo -e "\\nForceCommand /usr/bin/bastion/shell" >> /etc/ssh/sshd_config
+ForceCommand /usr/bin/bastion/shell
 
 # Block some SSH features that bastion host users could use to circumvent the solution
-awk '!/X11Forwarding/' /etc/ssh/sshd_config > temp && mv temp /etc/ssh/sshd_config
-echo "X11Forwarding no" >> /etc/ssh/sshd_config
+X11Forwarding no
 
 # Block connecting SSH using GSSAPI (Kerberos)
-sed -i "s/^GSSAPIAuthentication yes/GSSAPIAuthentication no/" /etc/ssh/sshd_config
+GSSAPIAuthentication no
+EOF
+chmod 600 /etc/ssh/sshd_config.d/00-bastion.conf
 
 # Protect against brut force authentication tryout
-# install epel
-amazon-linux-extras install epel -y
-
-# install fail2ban
-yum -y install fail2ban
-
 # configure fail2ban
 cat > /etc/fail2ban/jail.d/01-sshd.conf <<EOF
 [DEFAULT]
@@ -79,8 +88,11 @@ maxretry = 5
 # Jail 4 - recidive: all-ports, long-duration ban for repeat offenders.
 # logpath, banaction=allports, bantime=1w and findtime=1d come from the stock jail.conf
 # definition; we only enable it and exempt the trusted IPs.
+# fail2ban-systemd makes the journal the default backend, but fail2ban logs to
+# /var/log/fail2ban.log: read that file instead.
 [recidive]
 enabled  = true
+backend  = auto
 ignoreip = 127.0.0.1/8 ::1 ${bastion_cidrs} ${fail2ban_ddos_ignoreip}
 EOF
 
@@ -144,8 +156,8 @@ mount -o remount,rw,hidepid=2 /proc
 awk '!/proc/' /etc/fstab > temp && mv temp /etc/fstab
 echo "proc /proc proc defaults,hidepid=2 0 0" >> /etc/fstab
 
-# Restart the SSH service to apply /etc/ssh/sshd_config modifications.
-service sshd restart
+# Restart the SSH service to apply the sshd configuration modifications.
+systemctl restart sshd
 
 ############################
 ## EXPORT LOG FILES TO S3 ##
@@ -238,7 +250,7 @@ chmod 700 /usr/bin/bastion/sync_users
 
 cat > ~/mycron << EOF
 */5 * * * * /usr/bin/bastion/sync_users
-0 0 * * * yum -y update --security
+0 0 * * * dnf -y upgrade --security --releasever=latest
 ${sync_logs_cron_job}
 EOF
 crontab ~/mycron
