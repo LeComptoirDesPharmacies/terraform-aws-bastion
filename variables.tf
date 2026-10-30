@@ -78,8 +78,14 @@ variable "bastion_additional_security_groups" {
 
 variable "bastion_ami" {
   type        = string
-  description = "The AMI that the Bastion Host will use."
+  description = "The AMI that the Bastion Host will use. Default : latest Amazon Linux 2023 AMI (see al2023_kernel). The user data only supports Amazon Linux 2023."
   default     = ""
+}
+
+variable "al2023_kernel" {
+  type        = string
+  description = "Kernel line of the default Amazon Linux 2023 AMI (6.12, 6.18 or default)"
+  default     = "6.18"
 }
 
 variable "bastion_nlb" {
